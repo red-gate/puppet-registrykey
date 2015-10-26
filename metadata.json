@@ -1,0 +1,30 @@
+{
+  "name": "redgate-registrykey",
+  "version": "0.0.1",
+  "author": "redgate",
+  "summary": "A puppet module to hold a VERY basic registrykey resource to manage windows registry keys.",
+  "license": "Apache-2.0",
+  "source": "https://github.com/red-gate/puppet-registrykey",
+  "project_page": "https://github.com/red-gate/puppet-registrykey",
+  "issues_url": "https://github.com/red-gate/puppet-registrykey/issues",
+  "dependencies": [],
+  "description": "A puppet module to hold a VERY basic registrykey resource to manage windows registry keys.",
+  "tags": [
+    "microsoft",
+    "windows"
+  ],
+  "operatingsystem_support": [
+    {
+      "operatingsystem": "Windows",
+      "operatingsystemrelease": [
+        "Server 2008",
+        "Server 2008 R2",
+        "Server 2012",
+        "Server 2012 R2",
+        "7",
+        "8",
+        "10"
+      ]
+    }
+  ]
+}
