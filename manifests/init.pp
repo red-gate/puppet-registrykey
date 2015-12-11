@@ -5,7 +5,11 @@ define registrykey ($key, $subName, $data, $type='string') {
   if $::operatingsystem != 'windows'{
     fail("Unsupported OS ${::operatingsystem}")
   }
-  
+
+  if !member(['string', 'expandstring', 'binary', 'dword', 'multistring', 'qword', 'unknown'], $type) {
+    fail("Unsupported Type ${type}")
+  }
+
   # Recursively create key if it doesn't exist
   exec { "newregkey_${key}_${subName}":
     command  => "New-Item \"${key}\" -Type Directory -Force",
@@ -22,7 +26,7 @@ define registrykey ($key, $subName, $data, $type='string') {
   ->
   # Set value
   exec { "setregval_${key}_${subName}":
-    command  => "Set-ItemProperty -Path \"${key}\" -Name \"${subName}\" -Value \"${data}\"",
+    command  => "Set-ItemProperty -Path \"${key}\" -Name \"${subName}\" -Value \"${data}\"  -Type \"${type}\"",
     unless   => "if( (Get-ItemProperty \"${key}\" -Name \"${subName}\").\"${subName}\" -ne \"${data}\" ) { exit 1 }",
     provider => powershell,
   }
