@@ -1,6 +1,6 @@
 # A simple resource to set a registry key
 # Requires powershell
-define registrykey ($key, $subName, $data, $type='string') {
+define registrykey ($key, $subName = undef, $data = undef, $type='string') {
   # ensure windows os
   if $::operatingsystem != 'windows'{
     fail("Unsupported OS ${::operatingsystem}")
@@ -16,18 +16,28 @@ define registrykey ($key, $subName, $data, $type='string') {
     onlyif   => "if( Test-Path \"${key}\" ) { exit 1 }",
     provider => powershell,
   }
-  ->
-  # Create value if it doesn't exist
-  exec { "newregval_${key}_${subName}":
-    command  => "New-ItemProperty -Path \"${key}\" -Name \"${subName}\" -PropertyType \"${type}\" -Value \"${data}\"",
-    onlyif   => "if( (Get-ItemProperty \"${key}\" -Name \"${subName}\" -ea 0) -ne \$null ) { exit 1 }",
-    provider => powershell,
+
+  if $subName != undef {
+
+    if $data == undef {
+      fail('If $subName is set, $data should also be set')
+    }
+
+    # Create value if it doesn't exist
+    exec { "newregval_${key}_${subName}":
+      command  => "New-ItemProperty -Path \"${key}\" -Name \"${subName}\" -PropertyType \"${type}\" -Value \"${data}\"",
+      onlyif   => "if( (Get-ItemProperty \"${key}\" -Name \"${subName}\" -ea 0) -ne \$null ) { exit 1 }",
+      provider => powershell,
+      require  => Exec["newregkey_${key}_${subName}"],
+    }
+    ->
+    # Set value
+    exec { "setregval_${key}_${subName}":
+      command  => "Set-ItemProperty -Path \"${key}\" -Name \"${subName}\" -Value \"${data}\"  -Type \"${type}\"",
+      unless   => "if( (Get-ItemProperty \"${key}\" -Name \"${subName}\").\"${subName}\" -ne \"${data}\" ) { exit 1 }",
+      provider => powershell,
+    }
+
   }
-  ->
-  # Set value
-  exec { "setregval_${key}_${subName}":
-    command  => "Set-ItemProperty -Path \"${key}\" -Name \"${subName}\" -Value \"${data}\"  -Type \"${type}\"",
-    unless   => "if( (Get-ItemProperty \"${key}\" -Name \"${subName}\").\"${subName}\" -ne \"${data}\" ) { exit 1 }",
-    provider => powershell,
-  }
+
 }
