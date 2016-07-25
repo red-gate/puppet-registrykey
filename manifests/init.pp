@@ -1,6 +1,6 @@
 # A simple resource to set a registry key
 # Requires powershell
-define registrykey ($key, $subName = undef, $data = undef, $type='string') {
+define registrykey ($key, $ensure='present', $subName = undef, $data = undef, $type='string') {
   # ensure windows os
   if $::operatingsystem != 'windows'{
     fail("Unsupported OS ${::operatingsystem}")
@@ -10,34 +10,58 @@ define registrykey ($key, $subName = undef, $data = undef, $type='string') {
     fail("Unsupported Type ${type}")
   }
 
-  # Recursively create key if it doesn't exist
-  exec { "newregkey_${key}_${subName}":
-    command  => "New-Item \"${key}\" -Type Directory -Force",
-    onlyif   => "if( Test-Path \"${key}\" ) { exit 1 }",
-    provider => powershell,
+  if !member(['present', 'absent'], $ensure) {
+    fail("Unsupported value for ensure. (${ensure}). Valid values are 'present', 'absent'")
   }
 
-  if $subName != undef {
-
-    if $data == undef {
-      fail('If $subName is set, $data should also be set')
-    }
-
-    # Create value if it doesn't exist
-    exec { "newregval_${key}_${subName}":
-      command  => "New-ItemProperty -Path \"${key}\" -Name \"${subName}\" -PropertyType \"${type}\" -Value \"${data}\"",
-      onlyif   => "if( (Get-ItemProperty \"${key}\" -Name \"${subName}\" -ea 0) -ne \$null ) { exit 1 }",
-      provider => powershell,
-      require  => Exec["newregkey_${key}_${subName}"],
-    }
-    ->
-    # Set value
-    exec { "setregval_${key}_${subName}":
-      command  => "Set-ItemProperty -Path \"${key}\" -Name \"${subName}\" -Value \"${data}\"  -Type \"${type}\"",
-      unless   => "if( (Get-ItemProperty \"${key}\" -Name \"${subName}\").\"${subName}\" -ne \"${data}\" ) { exit 1 }",
+  if $ensure == 'present' {
+    # Recursively create key if it doesn't exist
+    exec { "newregkey_${key}_${subName}":
+      command  => "New-Item \"${key}\" -Type Directory -Force",
+      onlyif   => "if( Test-Path \"${key}\" ) { exit 1 }",
       provider => powershell,
     }
 
+    if $subName != undef {
+
+      if $data == undef {
+        fail('If $subName is set, $data should also be set')
+      }
+
+      # Create value if it doesn't exist
+      exec { "newregval_${key}_${subName}":
+        command  => "New-ItemProperty -Path \"${key}\" -Name \"${subName}\" -PropertyType \"${type}\" -Value \"${data}\"",
+        onlyif   => "if( (Get-ItemProperty \"${key}\" -Name \"${subName}\" -ea 0) -ne \$null ) { exit 1 }",
+        provider => powershell,
+        require  => Exec["newregkey_${key}_${subName}"],
+      }
+      ->
+      # Set value
+      exec { "setregval_${key}_${subName}":
+        command  => "Set-ItemProperty -Path \"${key}\" -Name \"${subName}\" -Value \"${data}\"  -Type \"${type}\"",
+        unless   => "if( (Get-ItemProperty \"${key}\" -Name \"${subName}\").\"${subName}\" -ne \"${data}\" ) { exit 1 }",
+        provider => powershell,
+      }
+    }
+  } else {
+    # absent. Delete the key
+    if $subName != undef {
+      # Delete the subkey
+      exec { "delregval_${key}_${subName}":
+        command  => "Remove-ItemProperty -Path \"${key}\" -Name \"${subName}\" -Force",
+        onlyif   => "if( (Get-ItemProperty \"${key}\" -Name \"${subName}\" -ea 0) -eq \$null ) { exit 1 }",
+        provider => powershell,
+      }
+    } else {
+      # delete the parent key
+      exec { "delregval_${key}":
+        command  => "Remove-Item -Path \"${key}\" -Force -Recurse",
+        onlyif   => "if( (Get-Item \"${key}\" -ea 0) -eq \$null ) { exit 1 }",
+        provider => powershell,
+      }
+    }
   }
+
+
 
 }
