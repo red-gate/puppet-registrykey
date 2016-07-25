@@ -1,0 +1,47 @@
+---
+driver:
+  name: vagrant
+
+provisioner:
+  name: puppet_apply
+  manifests_path: spec/manifests
+  modules_path: ./.kitchen-modules
+  require_chef_for_busser: false
+  resolve_with_librarian_puppet: false
+
+platforms:
+  - name: windows-2012r2
+    driver_plugin: vagrant
+    driver_config:
+      box: red-gate/windows-2012r2
+    transport:
+      name: winrm
+      elevated: true
+
+verifier:
+  name: shell
+
+suites:
+  - name: default
+    provisioner:
+      manifest: default.pp
+    verifier:
+      command: rspec -c -f d -I spec spec/acceptance/default_spec.rb
+  - name: deletekey
+    driver_config:
+      provision: true
+      vagrantfiles:
+        - spec/vagrantfiles/create_keys.rb # Custom vagrantfile to be merged and use so that we can do some additional setup for the test
+    provisioner:
+      manifest: deletekey.pp
+    verifier:
+      command: rspec -c -f d -I spec spec/acceptance/deletekey_spec.rb
+  - name: deletekeysubname
+    driver_config:
+      provision: true
+      vagrantfiles:
+        - spec/vagrantfiles/create_keys.rb # Custom vagrantfile to be merged and use so that we can do some additional setup for the test
+    provisioner:
+      manifest: deletekeysubname.pp
+    verifier:
+      command: rspec -c -f d -I spec spec/acceptance/deletekeysubname_spec.rb
