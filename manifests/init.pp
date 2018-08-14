@@ -35,22 +35,36 @@ define registrykey ($key, $ensure='present', $subName = undef, $data = undef, $t
         provider => powershell,
         require  => Exec["newregkey_${key}_${subName}"],
       }
-      ->
-      # Set value
-      exec { "setregval_${key}_${subName}":
-        command  => "Set-ItemProperty -Path \"${key}\" -Name \"${subName}\" -Value \"${data}\"  -Type \"${type}\"",
-        unless   => "if( (Get-ItemProperty \"${key}\" -Name \"${subName}\").\"${subName}\" -ne \"${data}\" ) { exit 1 }",
-        provider => powershell,
+      
+      if $type == 'multistring' {
+        exec { "setregval_${key}_${subName}_${data}": # Include $data in the title here so we can have >1 of them
+          command  => "Set-ItemProperty -Path \"${key}\" -Name \"${subName}\" -Value ((Get-ItemProperty \"${key}\" -Name \"${subName}\").\"${subName}\" += \"${data}\") -Type \"${type}\"",
+          unless   => "if( (Get-ItemProperty \"${key}\" -Name \"${subName}\").\"${subName}\" -contains \"${data}\" ) { exit 1 }",
+          provider => powershell,
+          require => Exec["newregval_${key}_${subName}"]
+        }
+      } else {
+        exec { "setregval_${key}_${subName}":
+          command  => "Set-ItemProperty -Path \"${key}\" -Name \"${subName}\" -Value \"${data}\"  -Type \"${type}\"",
+          unless   => "if( (Get-ItemProperty \"${key}\" -Name \"${subName}\").\"${subName}\" -ne \"${data}\" ) { exit 1 }",
+          provider => powershell,
+          require => Exec["newregval_${key}_${subName}"]
+        }
       }
+
     }
   } else {
-    # absent. Delete the key
+    # absent. Delete the key unless it's a multistring and we have a value, in which case we should remove that value only (TODO)
     if $subName != undef {
-      # Delete the subkey
-      exec { "delregval_${key}_${subName}":
-        command  => "Remove-ItemProperty -Path \"${key}\" -Name \"${subName}\" -Force",
-        onlyif   => "if( (Get-ItemProperty \"${key}\" -Name \"${subName}\" -ea 0) -eq \$null ) { exit 1 }",
-        provider => powershell,
+      if ($type == 'multistring' and $value != undef) {
+        fail("ensure => absent not implemented for registrykey of type multistring with specified value")
+      } else {
+        # Delete the subkey
+        exec { "delregval_${key}_${subName}":
+          command  => "Remove-ItemProperty -Path \"${key}\" -Name \"${subName}\" -Force",
+          onlyif   => "if( (Get-ItemProperty \"${key}\" -Name \"${subName}\" -ea 0) -eq \$null ) { exit 1 }",
+          provider => powershell,
+        }
       }
     } else {
       # delete the parent key
@@ -61,7 +75,5 @@ define registrykey ($key, $ensure='present', $subName = undef, $data = undef, $t
       }
     }
   }
-
-
 
 }
