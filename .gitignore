@@ -179,3 +179,4 @@ example_env
 
 .bundle/
 .kitchen*/
+/Gemfile.lock
