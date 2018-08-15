@@ -39,7 +39,7 @@ define registrykey ($key, $ensure='present', $subName = undef, $data = undef, $t
       if $type == 'multistring' {
         exec { "setregval_${key}_${subName}_${data}": # Include $data in the title here so we can have >1 of them
           command  => "Set-ItemProperty -Path \"${key}\" -Name \"${subName}\" -Value ((Get-ItemProperty \"${key}\" -Name \"${subName}\").\"${subName}\" += \"${data}\") -Type \"${type}\"",
-          unless   => "if( (Get-ItemProperty \"${key}\" -Name \"${subName}\").\"${subName}\" -contains \"${data}\" ) { exit 1 }",
+          onlyif   => "if( (Get-ItemProperty \"${key}\" -Name \"${subName}\").\"${subName}\" -contains \"${data}\" ) { exit 1 }",
           provider => powershell,
           require => Exec["newregval_${key}_${subName}"]
         }
